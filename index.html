@@ -60,6 +60,7 @@
     height: 100%;
     border-radius: 12px;
     box-shadow: 0 0 60px var(--shadow), 0 0 120px rgba(255,60,0,0.2);
+    outline: none; /* suppress default focus ring — keyboard works via tabindex */
   }
 
   /* ─── HUD / UI layer ─── */
@@ -175,13 +176,17 @@
     z-index: 10;
     padding: 16px;
   }
-  #overlay h1 {
+  #overlay h1,
+  #overlay .overlay-title {
+    font-family: 'Fredoka One', cursive;
     font-size: clamp(28px, 6.5vw, 52px);
     color: var(--orange);
     text-shadow: 0 0 20px #ff4400, 0 3px 0 #8b2000;
     margin-bottom: 8px;
     animation: pulse 1.5s ease-in-out infinite;
     text-align: center;
+    line-height: 1.1;
+    letter-spacing: 1px;
   }
   @keyframes pulse {
     0%, 100% { transform: scale(1); }
@@ -220,7 +225,7 @@
 
 <!-- Fluid scaler wrapper — no fixed px dimensions -->
 <div id="scaler">
-  <canvas id="c" width="800" height="540"></canvas>
+  <canvas id="c" width="800" height="540" tabindex="0" autofocus></canvas>
 
   <div id="ui">
     <div id="hud">❤️ <span id="lives">3</span></div>
@@ -240,7 +245,7 @@
 
   <div id="overlay">
     <div class="bigEmoji">🍲</div>
-    <h1>THE SOUP SABOTEUR</h1>
+    <h1 class="overlay-title">THE SOUP SABOTEUR</h1>
     <p>You're a disgruntled Sous Chef. Dump chili powder into the soup while the Head Chef isn't looking — ruin his career and steal his hat!</p>
     <p>🟢 <b>Green</b> = Safe &nbsp;|&nbsp; 🟡 <b>Yellow</b> = Warning &nbsp;|&nbsp; 🔴 <b>Red</b> = HIDE NOW!</p>
     <button id="startBtn">START SABOTAGE 🌶</button>
@@ -748,7 +753,7 @@ function showGameOver() {
   ov.style.display = 'flex';
   ov.innerHTML = `
     <div class="bigEmoji">🍽️</div>
-    <h1 style="color:#ff4444">BUSTED!</h1>
+    <h1 class="overlay-title" style="color:#ff4444">BUSTED!</h1>
     <p>You're washing dishes for the rest of your life.<br>The Head Chef reigns supreme.</p>
     <button id="startBtn" style="background:linear-gradient(135deg,#cc0000,#880000)">Try Again 😤</button>
   `;
@@ -1322,6 +1327,9 @@ function drawSabotageItem(type, x, y, scale = 1) {
 /* ═══════════════════════════════════════════════════════════════
    KICK OFF
 ═══════════════════════════════════════════════════════════════ */
+// Focus canvas immediately so keyboard listeners (M, Space) work
+// without requiring the player to click first
+canvas.focus();
 requestAnimationFrame(ts => { last = ts; requestAnimationFrame(update); });
 </script>
 </body>

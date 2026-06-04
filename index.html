@@ -498,6 +498,7 @@ function startGame() {
   defSpice = 0; defPhase = 'green'; defTimer = 0;
   defCaught = false; defHiding = false; hatLanded = false; hatY = -80;
   particles = []; steamPuffs = []; rollingPin = null; soupBubbles = [];
+  rollDefDurations();
 
   /* ── CrazyGames: signal that live gameplay has started ── */
   CG.gameplayStart();
@@ -689,6 +690,7 @@ function updateWinning(dt) {
       defSpice = 0; defPhase = 'green'; defTimer = 0;
       defCaught = false; defHiding = false; defCatchWindow = false;
       setDurations();
+      rollDefDurations();   // seed defend phase timers before first frame
       state = 'defending';
       showMessage('🕵️ Now YOU must catch THEM!', 2000);
 
@@ -699,6 +701,21 @@ function updateWinning(dt) {
 }
 
 /* ─── DEFENDING ─── */
+// Pre-rolled phase durations — generated ONCE per phase transition,
+// NOT inside the per-frame update. Calling rnd() every frame means
+// the threshold re-rolls ~60×/sec; the comparison almost never wins,
+// so the phase machine stalls and yellow/red never trigger reliably.
+let defGreenDur  = 0;
+let defYellowDur = 0;
+let defRedDur    = 0;
+
+function rollDefDurations() {
+  const d = Math.max(0.4, 1 - (round - 1) * 0.07);
+  defGreenDur  = rnd(2000, 3500) * d;
+  defYellowDur = rnd(500,  900)  * d;
+  defRedDur    = rnd(700,  1500) * d;
+}
+
 function updateDefending(dt) {
   if (defCaught) {
     defAnim += dt;
@@ -714,25 +731,42 @@ function updateDefending(dt) {
   }
 
   defTimer += dt;
-  const dDefPhase = Math.max(0.4, 1 - (round - 1) * 0.07);
 
+  // GREEN  → assistant pours openly, bar rises, player waits for tell
+  // YELLOW → assistant hides item (catch window OPEN), bar pauses
+  // RED    → window closed, assistant resumes pouring at slower rate
   if (defPhase === 'green') {
-    if (!defHiding) defSpice = Math.min(100, defSpice + dt * 0.028);
+    defHiding = false;
     defCatchWindow = false;
-    if (defTimer > rnd(2000, 3500) * dDefPhase) { defPhase = 'yellow'; defTimer = 0; }
+    defSpice = Math.min(100, defSpice + dt * 0.028);
+    if (defTimer >= defGreenDur) {
+      defPhase = 'yellow'; defTimer = 0; rollDefDurations();
+    }
   } else if (defPhase === 'yellow') {
-    defHiding = true; defCatchWindow = true;
-    if (defTimer > rnd(500, 900) * dDefPhase) { defPhase = 'red'; defTimer = 0; }
+    defHiding = true;
+    defCatchWindow = true;
+    // Bar PAUSES during the reaction window so the player isn't
+    // punished for the brief moment they're expected to press Space
+    if (defTimer >= defYellowDur) {
+      defPhase = 'red'; defTimer = 0; rollDefDurations();
+    }
   } else if (defPhase === 'red') {
-    defHiding = false; defCatchWindow = false;
-    if (defTimer > rnd(700, 1500) * dDefPhase) { defPhase = 'green'; defTimer = 0; }
+    defHiding = false;
+    defCatchWindow = false;
+    defSpice = Math.min(100, defSpice + dt * 0.018);
+    if (defTimer >= defRedDur) {
+      defPhase = 'green'; defTimer = 0; rollDefDurations();
+    }
   }
 
+  // Bust condition
   if (defSpice >= 100) {
     lives--;
     document.getElementById('lives').textContent = lives;
     defSpice = 0; defPhase = 'green'; defTimer = 0;
+    defHiding = false; defCatchWindow = false;
     catchFlash = 1;
+    rollDefDurations();
     showMessage('😱 They ruined the soup!', 1800);
     spawnParticles(640, 280, '#00aaff', 18);
     Audio.sfxCatch();
